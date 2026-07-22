@@ -1263,14 +1263,12 @@ window.showDrilldown = async function(costCenterName) {
         const to_date = document.getElementById("filter-to-date").value;
         const warehouse = document.getElementById("filter-warehouse").value;
         
-        const branch = document.getElementById("filter-branch").value;
         const data = await callAPI("cost_center_analytics.api.get_branch_details", {
             company,
             cost_center: costCenterName,
             from_date,
             to_date,
-            warehouse,
-            branch
+            warehouse
         });
         
         if (data && !data.error) {
