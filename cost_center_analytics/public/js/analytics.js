@@ -132,8 +132,8 @@ function switchTab(tabId) {
         mainTitle.innerText = "تقرير الأرباح والخسائر لمراكز التكلفة";
         subTitle.innerText = "تحليل شامل للإيرادات والمصروفات وصافي الأرباح لمراكز التكلفة";
     } else if (tabId === "leaderboard") {
-        mainTitle.innerText = "ترتيب أداء الفروع ومراكز التكلفة";
-        subTitle.innerText = "تصنيف الفروع والمراكز الأكثر مبيعاً وربحية خلال الفترة";
+        mainTitle.innerText = "ترتيب أداء مراكز التكلفة";
+        subTitle.innerText = "تصنيف وترتيب مراكز التكلفة الأكثر مبيعاً وربحية خلال الفترة";
         renderLeaderboard();
     } else if (tabId === "expenses") {
         mainTitle.innerText = "تحليل بنود المصروفات";
@@ -1421,17 +1421,17 @@ window.renderLeaderboard = function() {
     const container = document.getElementById("leaderboard-container");
     container.innerHTML = "";
     
-    // Filter only branch/leaf cost centers
-    const branches = dashboardData.cost_centers.filter(cc => !cc.is_group);
-    if (branches.length === 0) {
-        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted);">لا توجد فروع لعرض البيانات المرجعية.</div>`;
+    // Filter only leaf cost centers
+    const leaves = dashboardData.cost_centers.filter(cc => !cc.is_group);
+    if (leaves.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted);">لا توجد مراكز تكلفة لعرض البيانات المرجعية.</div>`;
         return;
     }
     
     const dates = Object.keys(dashboardData.daily_sales);
     
-    // Calculate cumulative stats for each branch
-    const ranked = branches.map(cc => {
+    // Calculate cumulative stats for each cost center
+    const ranked = leaves.map(cc => {
         const totalSales = dates.reduce((sum, d) => sum + (dashboardData.daily_sales[d][cc.name] || 0), 0);
         const pl = dashboardData.pl_data[cc.name] || { income: 0, expense: 0, profit: 0, margin: 0 };
         return {
@@ -1460,10 +1460,10 @@ window.renderLeaderboard = function() {
             <div class="leaderboard-medal">${medals[idx]}</div>
             <div class="leaderboard-top-info">
                 <div class="leaderboard-top-name">${item.name}</div>
-                <div class="leaderboard-top-sales">${formatCurrency(item.sales)}</div>
+                <div class="leaderboard-top-sales"><span dir="ltr">${formatCurrency(item.sales)}</span></div>
                 <div class="leaderboard-top-meta">
-                    <span>الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(item.profit)}</b></span>
-                    <span>الهامش: <b>${item.margin.toFixed(1)}%</b></span>
+                    <span>الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}"><span dir="ltr">${formatCurrency(item.profit)}</span></b></span>
+                    <span>الهامش: <b><span dir="ltr">${item.margin.toFixed(1)}%</span></b></span>
                 </div>
             </div>
         `;
@@ -1490,12 +1490,12 @@ window.renderLeaderboard = function() {
                 <div class="leaderboard-progress-bg">
                     <div class="leaderboard-progress-fill" style="width: ${pct}%"></div>
                 </div>
-                <div class="leaderboard-top-meta" style="margin-top: 2px;">
-                    <span>صافي الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(item.profit)}</b></span>
-                    <span>هامش الربح: <b>${item.margin.toFixed(1)}%</b></span>
+                <div class="leaderboard-top-meta" style="margin-top: 2.5px;">
+                    <span>صافي الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}"><span dir="ltr">${formatCurrency(item.profit)}</span></b></span>
+                    <span>هامش الربح: <b><span dir="ltr">${item.margin.toFixed(1)}%</span></b></span>
                 </div>
             </div>
-            <div class="leaderboard-item-sales">${formatCurrency(item.sales)}</div>
+            <div class="leaderboard-item-sales"><span dir="ltr">${formatCurrency(item.sales)}</span></div>
         `;
         listContainer.appendChild(itemEl);
     });

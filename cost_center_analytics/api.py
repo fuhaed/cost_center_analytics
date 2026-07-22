@@ -644,3 +644,4 @@ def get_cash_flow(company, from_date, to_date, warehouse=None, branch=None, cost
         
     return result
 
+
