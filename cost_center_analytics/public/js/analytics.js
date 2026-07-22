@@ -738,8 +738,7 @@ function renderDailySalesCharts() {
     if (charts.salesGroups) { charts.salesGroups.destroy(); }
     
     // Filter cost centers
-    const branches = window.branchesList || [];
-    const groups = dashboardData.cost_centers.filter(cc => cc.is_group);
+    const groups = dashboardData.cost_centers.filter(cc => !cc.is_group);
     
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const gridColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)";
