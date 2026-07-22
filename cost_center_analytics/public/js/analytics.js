@@ -289,6 +289,30 @@ async function loadFiltersData(company) {
                     option.text = indent + (cc.cost_center_name || cc.name);
                     costCenterSelect.appendChild(option);
                 });
+
+                // Populate comparison selectors
+                const comp1 = document.getElementById("compare-cc-1");
+                const comp2 = document.getElementById("compare-cc-2");
+                if (comp1 && comp2) {
+                    comp1.innerHTML = "";
+                    comp2.innerHTML = "";
+                    res.cost_centers.forEach((cc) => {
+                        const opt1 = document.createElement("option");
+                        opt1.value = cc.name;
+                        opt1.text = cc.cost_center_name || cc.name;
+                        comp1.appendChild(opt1);
+                        
+                        const opt2 = document.createElement("option");
+                        opt2.value = cc.name;
+                        opt2.text = cc.cost_center_name || cc.name;
+                        comp2.appendChild(opt2);
+                    });
+                    
+                    if (res.cost_centers.length > 1) {
+                        comp1.selectedIndex = 0;
+                        comp2.selectedIndex = 1;
+                    }
+                }
             }
         }
     } catch (err) {
@@ -356,6 +380,12 @@ async function loadData() {
             loadExpenseAnalysis();
         } else if (currentTab === "cashflow") {
             loadCashFlow();
+        } else if (currentTab === "comparison") {
+            renderComparison();
+        } else if (currentTab === "peakhours") {
+            loadPeakHours();
+        } else if (currentTab === "salespersons") {
+            loadSalespersons();
         }
         
     } catch (err) {
@@ -1714,4 +1744,282 @@ function renderCashFlow(data) {
         }
     });
 }
+
+
+// Advanced Tools: Cost Center Comparison, Peak Hours & Salesperson Leaderboard
+
+let comparisonBarChart = null;
+
+window.renderComparison = function() {
+    if (!dashboardData) return;
+    const cc1 = document.getElementById("compare-cc-1").value;
+    const cc2 = document.getElementById("compare-cc-2").value;
+    
+    if (!cc1 || !cc2) return;
+    
+    const info1 = dashboardData.cost_centers.find(c => c.name === cc1) || { cost_center_name: cc1 };
+    const info2 = dashboardData.cost_centers.find(c => c.name === cc2) || { cost_center_name: cc2 };
+    
+    const dates = Object.keys(dashboardData.daily_sales);
+    const sales1 = dates.reduce((sum, d) => sum + (dashboardData.daily_sales[d][cc1] || 0), 0);
+    const sales2 = dates.reduce((sum, d) => sum + (dashboardData.daily_sales[d][cc2] || 0), 0);
+    
+    const pl1 = dashboardData.pl_data[cc1] || { income: 0, expense: 0, profit: 0, margin: 0 };
+    const pl2 = dashboardData.pl_data[cc2] || { income: 0, expense: 0, profit: 0, margin: 0 };
+    
+    const container = document.getElementById("compare-metrics-container");
+    container.innerHTML = "";
+    
+    const metrics = [
+        { title: "إجمالي المبيعات", val1: sales1, val2: sales2, format: true },
+        { title: "إجمالي الإيرادات", val1: pl1.income, val2: pl2.income, format: true },
+        { title: "إجمالي المصروفات", val1: pl1.expense, val2: pl2.expense, format: true },
+        { title: "صافي الأرباح", val1: pl1.profit, val2: pl2.profit, format: true, isProfit: true },
+        { title: "هامش الربح (%)", val1: pl1.margin, val2: pl2.margin, format: false, suffix: "%" }
+    ];
+    
+    metrics.forEach(m => {
+        const sum = Math.abs(m.val1) + Math.abs(m.val2);
+        let pct1 = 50;
+        let pct2 = 50;
+        if (sum > 0) {
+            pct1 = (Math.abs(m.val1) / sum) * 100;
+            pct2 = (Math.abs(m.val2) / sum) * 100;
+        }
+        
+        const card = document.createElement("div");
+        card.className = "comparison-metric-card";
+        
+        let displayVal1 = m.format ? formatCurrency(m.val1) : m.val1.toFixed(1) + (m.suffix || "");
+        let displayVal2 = m.format ? formatCurrency(m.val2) : m.val2.toFixed(1) + (m.suffix || "");
+        
+        let color1Style = "";
+        let color2Style = "";
+        if (m.isProfit) {
+            color1Style = `color: ${m.val1 >= 0 ? '#10b981' : '#ef4444'};`;
+            color2Style = `color: ${m.val2 >= 0 ? '#10b981' : '#ef4444'};`;
+        }
+        
+        card.innerHTML = `
+            <div class="comparison-metric-title">${m.title}</div>
+            <div class="comparison-metric-values">
+                <div class="comp-val-box a">
+                    <span class="comp-val-label">${info1.cost_center_name || cc1}</span>
+                    <span class="comp-val-num" style="${color1Style}" dir="ltr">${displayVal1}</span>
+                </div>
+                <div class="comp-val-box b">
+                    <span class="comp-val-label">${info2.cost_center_name || cc2}</span>
+                    <span class="comp-val-num" style="${color2Style}" dir="ltr">${displayVal2}</span>
+                </div>
+            </div>
+            <div class="comparison-progress-container">
+                <div class="comp-progress-a" style="width: ${pct1}%"></div>
+                <div class="comp-progress-b" style="width: ${pct2}%"></div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+    
+    const ctx = document.getElementById("chart-comparison-bar").getContext("2d");
+    if (comparisonBarChart) {
+        comparisonBarChart.destroy();
+    }
+    
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const textColor = isDark ? "#9ca3af" : "#64748b";
+    const gridColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)";
+    
+    comparisonBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ["المبيعات", "الإيرادات", "المصروفات", "صافي الأرباح"],
+            datasets: [
+                {
+                    label: info1.cost_center_name || cc1,
+                    data: [sales1, pl1.income, pl1.expense, pl1.profit],
+                    backgroundColor: '#6366f1',
+                    borderRadius: 4
+                },
+                {
+                    label: info2.cost_center_name || cc2,
+                    data: [sales2, pl2.income, pl2.expense, pl2.profit],
+                    backgroundColor: '#ec4899',
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textColor,
+                        font: { family: 'Cairo', size: 11 }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'Cairo' } }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'Outfit' } }
+                }
+            }
+        }
+    });
+};
+
+let peakhoursLineChart = null;
+
+window.loadPeakHours = function() {
+    const company = document.getElementById("filter-company").value;
+    const fromDate = document.getElementById("filter-from-date").value;
+    const toDate = document.getElementById("filter-to-date").value;
+    const costCenter = document.getElementById("filter-cost-center").value;
+    
+    if (!company) return;
+    
+    const args = { company, from_date: fromDate, to_date: toDate };
+    if (costCenter) args.cost_center = costCenter;
+    
+    showLoader(true);
+    callAPI("cost_center_analytics.api.get_sales_peak_hours", args).then(data => {
+        renderPeakHours(data);
+    }).catch(err => {
+        console.error(err);
+    }).finally(() => {
+        showLoader(false);
+    });
+};
+
+function renderPeakHours(data) {
+    const chartMsg = document.getElementById("msg-peakhours-chart");
+    
+    if (peakhoursLineChart) {
+        peakhoursLineChart.destroy();
+        peakhoursLineChart = null;
+    }
+    
+    const totalAmount = data.reduce((sum, item) => sum + item.amount, 0);
+    if (totalAmount === 0) {
+        chartMsg.style.display = "block";
+        return;
+    }
+    chartMsg.style.display = "none";
+    
+    const labels = data.map(item => {
+        const h = item.hour;
+        const ampm = h >= 12 ? "مساءً" : "صباحاً";
+        const displayHour = h % 12 === 0 ? 12 : h % 12;
+        return `${displayHour} ${ampm}`;
+    });
+    
+    const amounts = data.map(item => item.amount);
+    
+    const ctx = document.getElementById("chart-peakhours-line").getContext("2d");
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const textColor = isDark ? "#9ca3af" : "#64748b";
+    const gridColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)";
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    
+    peakhoursLineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'معدل المبيعات التراكمي',
+                data: amounts,
+                borderColor: '#10b981',
+                borderWidth: 3,
+                fill: true,
+                backgroundColor: gradient,
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#10b981'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: textColor, font: { family: 'Cairo' } }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'Cairo', size: 10 } }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'Outfit' } }
+                }
+            }
+        }
+    });
+}
+
+window.loadSalespersons = function() {
+    const company = document.getElementById("filter-company").value;
+    const fromDate = document.getElementById("filter-from-date").value;
+    const toDate = document.getElementById("filter-to-date").value;
+    const costCenter = document.getElementById("filter-cost-center").value;
+    
+    if (!company) return;
+    
+    const args = { company, from_date: fromDate, to_date: toDate };
+    if (costCenter) args.cost_center = costCenter;
+    
+    showLoader(true);
+    callAPI("cost_center_analytics.api.get_salesperson_leaderboard", args).then(data => {
+        renderSalespersons(data);
+    }).catch(err => {
+        console.error(err);
+    }).finally(() => {
+        showLoader(false);
+    });
+};
+
+function renderSalespersons(data) {
+    const tableBody = document.getElementById("table-salespersons-body");
+    tableBody.innerHTML = "";
+    
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">لا توجد مبيعات مسندة لبائعين في هذه الفترة.</td></tr>`;
+        return;
+    }
+    
+    const totalSales = data.reduce((sum, item) => sum + item.amount, 0);
+    
+    data.forEach((item, index) => {
+        const pct = totalSales > 0 ? (item.amount / totalSales) * 100 : 0;
+        
+        let rankBadge = `<span class="leaderboard-rank-num">${index + 1}</span>`;
+        if (index === 0) rankBadge = "🥇";
+        else if (index === 1) rankBadge = "🥈";
+        else if (index === 2) rankBadge = "🥉";
+        
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="text-align: center; font-size: 16px;">${rankBadge}</td>
+            <td style="font-weight: 700; color: var(--text-main);">${item.sales_person}</td>
+            <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;"><span dir="ltr">${formatCurrency(item.amount)}</span></td>
+            <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600; color: var(--primary);"><span dir="ltr">${pct.toFixed(1)}%</span></td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
+
+window.exportPDF = function() {
+    window.print();
+};
+
 

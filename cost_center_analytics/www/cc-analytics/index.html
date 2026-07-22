@@ -83,6 +83,23 @@
                     <span>التدفقات النقدية</span>
                 </a>
             </div>
+
+            <!-- Advanced Tools Category -->
+            <div class="nav-category">
+                <div class="nav-category-title">الأدوات المتقدمة</div>
+                <a href="javascript:void(0)" class="nav-item" data-tab="comparison">
+                    <i class="fa-solid fa-code-compare"></i>
+                    <span>مقارنة المراكز</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="peakhours">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>أوقات الذروة</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="salespersons">
+                    <i class="fa-solid fa-users"></i>
+                    <span>أداء البائعين</span>
+                </a>
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -181,6 +198,10 @@
                     <button class="btn btn-secondary" id="btn-export" onclick="exportToExcel()">
                         <i class="fa-solid fa-file-excel"></i>
                         <span>تصدير Excel</span>
+                    </button>
+                    <button class="btn btn-secondary" id="btn-export-pdf" onclick="exportPDF()" style="background-color: #ef4444; color: white; border: 1px solid #dc2626;">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>تصدير PDF</span>
                     </button>
                 </div>
             </div>
@@ -386,6 +407,72 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 6: Cost Center Comparison Section -->
+        <div class="tab-content" id="tab-comparison">
+            <div class="dashboard-section-title">
+                <h2>مقارنة الأداء المالي بين مركزين تكلفة</h2>
+            </div>
+            <div class="comparison-selectors-card">
+                <div class="comparison-selector-group">
+                    <label class="filter-label">مركز التكلفة الأول (A)</label>
+                    <select class="filter-select" id="compare-cc-1" onchange="renderComparison()"></select>
+                </div>
+                <div class="comparison-divider-vs">VS</div>
+                <div class="comparison-selector-group">
+                    <label class="filter-label">مركز التكلفة الثاني (B)</label>
+                    <select class="filter-select" id="compare-cc-2" onchange="renderComparison()"></select>
+                </div>
+            </div>
+            <div class="comparison-metrics-grid" id="compare-metrics-container">
+                <!-- Dynamic comparative stats -->
+            </div>
+            <div class="comparison-chart-box" style="margin-top: 16px;">
+                <div class="chart-header">مقارنة بيانية للمبيعات والأرباح والمصروفات</div>
+                <div class="chart-body-donut" style="position: relative; height: 320px; width: 100%;">
+                    <canvas id="chart-comparison-bar"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 7: Sales Peak Hours Section -->
+        <div class="tab-content" id="tab-peakhours">
+            <div class="dashboard-section-title">
+                <h2>تحليل أوقات الذروة وحركة المبيعات خلال ساعات اليوم</h2>
+            </div>
+            <div class="peakhours-chart-card">
+                <div class="chart-header">مبيعات الفروع التراكمية حسب ساعات اليوم (24 ساعة)</div>
+                <div class="chart-body-donut" style="position: relative; height: 360px; width: 100%;">
+                    <canvas id="chart-peakhours-line"></canvas>
+                    <div class="no-data-msg" id="msg-peakhours-chart">لا توجد بيانات مبيعات بالفترة المحددة لمسح ساعات اليوم</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 8: Salesperson Leaderboard Section -->
+        <div class="tab-content" id="tab-salespersons">
+            <div class="dashboard-section-title">
+                <h2>تحليل أداء البائعين والموظفين</h2>
+            </div>
+            <div class="table-card">
+                <div class="chart-header">لوحة شرف مبيعات الموظفين (Sales Team)</div>
+                <div class="table-container">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px; text-align: center;">الترتيب</th>
+                                <th>اسم البائع / الموظف</th>
+                                <th class="text-right">إجمالي المبيعات المحققة</th>
+                                <th class="text-right">المساهمة (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-salespersons-body">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

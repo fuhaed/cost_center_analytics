@@ -645,3 +645,134 @@ def get_cash_flow(company, from_date, to_date, warehouse=None, branch=None, cost
     return result
 
 
+@frappe.whitelist()
+def get_sales_peak_hours(company, from_date, to_date, cost_center=None):
+    """
+    Fetch sales amount grouped by hour of the day.
+    """
+    from cost_center_analytics.permission import has_app_permission
+    if not has_app_permission():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+        
+    conditions = [
+        "si.company = %(company)s",
+        "si.docstatus = 1",
+        "si.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    ]
+    values = {
+        "company": company,
+        "from_date": from_date,
+        "to_date": to_date
+    }
+    
+    if cost_center:
+        cc_info = frappe.db.get_value("Cost Center", cost_center, ["lft", "rgt"], as_dict=True)
+        if cc_info:
+            descendants = frappe.get_all(
+                "Cost Center",
+                filters={"lft": (">=", cc_info.lft), "rgt": ("<=", cc_info.rgt), "company": company},
+                pluck="name"
+            )
+            descendants_list = descendants if descendants else [cost_center]
+        else:
+            descendants_list = [cost_center]
+        conditions.append("sii.cost_center IN %(descendants)s")
+        values["descendants"] = descendants_list
+        
+    query = frappe.db.sql(f"""
+        SELECT
+            HOUR(si.posting_time) as hr,
+            SUM(CASE WHEN si.is_return = 1 THEN -sii.base_net_amount ELSE sii.base_net_amount END) as sales_amount
+        FROM
+            `tabSales Invoice Item` sii
+        INNER JOIN
+            `tabSales Invoice` si ON sii.parent = si.name
+        WHERE
+            { " AND ".join(conditions) }
+        GROUP BY
+            hr
+        ORDER BY
+            hr ASC
+    """, values, as_dict=True)
+    
+    hourly_sales = {h: 0.0 for h in range(24)}
+    for r in query:
+        if r.hr is not None:
+            hourly_sales[int(r.hr)] = flt(r.sales_amount)
+            
+    result = [{"hour": h, "amount": hourly_sales[h]} for h in range(24)]
+    return result
+
+
+@frappe.whitelist()
+def get_salesperson_leaderboard(company, from_date, to_date, cost_center=None):
+    """
+    Fetch salesperson total contributions for the selected filters.
+    """
+    from cost_center_analytics.permission import has_app_permission
+    if not has_app_permission():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+        
+    conditions = [
+        "si.company = %(company)s",
+        "si.docstatus = 1",
+        "si.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    ]
+    values = {
+        "company": company,
+        "from_date": from_date,
+        "to_date": to_date
+    }
+    
+    if cost_center:
+        cc_info = frappe.db.get_value("Cost Center", cost_center, ["lft", "rgt"], as_dict=True)
+        if cc_info:
+            descendants = frappe.get_all(
+                "Cost Center",
+                filters={"lft": (">=", cc_info.lft), "rgt": ("<=", cc_info.rgt), "company": company},
+                pluck="name"
+            )
+            descendants_list = descendants if descendants else [cost_center]
+        else:
+            descendants_list = [cost_center]
+        conditions.append("""
+            EXISTS (
+                SELECT 1 FROM `tabSales Invoice Item` sii 
+                WHERE sii.parent = si.name AND sii.cost_center IN %(descendants)s
+            )
+        """)
+        values["descendants"] = descendants_list
+        
+    query = frappe.db.sql(f"""
+        SELECT
+            st.sales_person,
+            SUM(
+                CASE 
+                    WHEN st.allocated_amount > 0 THEN st.allocated_amount 
+                    ELSE (st.allocated_percentage * si.base_net_total / 100.0) 
+                END * (CASE WHEN si.is_return = 1 THEN -1.0 ELSE 1.0 END)
+            ) as amount
+        FROM
+            `tabSales Team` st
+        INNER JOIN
+            `tabSales Invoice` si ON st.parent = si.name
+        WHERE
+            { " AND ".join(conditions) }
+        GROUP BY
+            st.sales_person
+        ORDER BY
+            amount DESC
+    """, values, as_dict=True)
+    
+    result = []
+    for r in query:
+        val = flt(r.amount)
+        if val != 0:
+            result.append({
+                "sales_person": r.sales_person,
+                "amount": val
+            })
+    return result
+
+
+
