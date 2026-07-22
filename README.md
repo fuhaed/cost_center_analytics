@@ -1,33 +1,56 @@
-### Cost Center Analytics
+# Cost Center Analytics (تحليلات مراكز التكلفة)
 
-Cost Center Analytics Dashboard Portal
+تطبيق مخصص وبوابة تحليلات مالية متقدمة لمراكز التكلفة والفروع في بيئة **Frappe / ERPNext**. يتيح التطبيق عرض المبيعات اليومية، وتحليلات الأرباح والخسائر (P&L)، وإجمالي الإيرادات والمصروفات بدقة محاسبية عالية ورسوم بيانية ذكية تفاعلية.
 
-### Installation
+---
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+## 🚀 طريقة التنصيب السريع (Quick Installation Guide)
 
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app cost_center_analytics
-```
-
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+لتنصيب التطبيق وتفعيله على موقعك بأسرع طريقة، قم بتشغيل الأوامر التالية بالتتابع داخل مجلد الـ `bench` الخاص بك:
 
 ```bash
-cd apps/cost_center_analytics
-pre-commit install
+# 1. الانتقال إلى مجلد البينش الرئيسي
+cd ~/frappe-bench
+
+# 2. تحميل التطبيق من مستودع الـ GitHub
+bench get-app https://github.com/fuhaed/cost_center_analytics.git
+
+# 3. تثبيت التطبيق على موقعك المالي المحدد
+bench --site [your-site-name] install-app cost_center_analytics
+
+# 4. بناء الأصول وبناء ملفات الجافا سكريبت والتصميمات
+bench build --app cost_center_analytics
+
+# 5. تنظيف التخزين المؤقت للموقع
+bench --site [your-site-name] clear-cache
+
+# 6. إعادة تشغيل خوادم النظام
+bench restart
 ```
+*💡 ملاحظة: استبدل `[your-site-name]` باسم موقعك الفعلي (مثال: `erp.erpnext.support` أو `site1.local`).*
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+---
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+## 🛡️ نظام الصلاحيات المطور (Permissions Guide)
 
-### License
+يقوم التطبيق تلقائياً أثناء التنصيب بإنشاء دور مخصص في قاعدة البيانات لتسهيل توزيع الصلاحيات:
+* **الدور المخصص المنشأ:** `Cost Center Analytics User`
+* **المصرح لهم بالدخول افتراضياً:**
+  * مدير النظام (`System Manager`) والمسؤول الرئيسي (`Administrator`).
+  * أي مستخدم عادي أو موظف يتم إسناد دور `Cost Center Analytics User` له من قبل الإدارة.
 
-mit
+### خطوات منح الصلاحية لموظف:
+1. اذهب إلى نموذج المستخدم (`User`) في لوحة تحكم ERPNext.
+2. اختر المستخدم المطلوب واذهب لقسم الأدوار (Roles).
+3. قم بتفعيل الخيار بجوار دور **`Cost Center Analytics User`** ثم احفظ التغييرات.
+
+---
+
+## ✨ المميزات الرئيسية (Core Features)
+
+1. **دقة محاسبية مطلقة:** يتم جلب الحسابات وصافي الأرباح مباشرة من قيود دفتر الأستاذ العام (`tabGL Entry`) المطابقة لدفاتر الشركة المالية.
+2. **فلاتر سريعة للتاريخ (Date Pills):** أزرار تفاعلية مدمجة (اليوم، الأمس، الأسبوع، الشهر، الشهر الماضي، السنة) تعيد فلترة وتحديث البيانات بضغطة زر واحدة.
+3. **تجميع ذكي ومقروء للمحور الزمني:** تجميع تلقائي للرسومات البيانية (يومياً، أسبوعياً، شهرياً) بحسب طول الفترة المختارة لتظل الرسوم واضحة وسهلة القراءة دائماً.
+4. **تجميع ذكي للفروع الكثيرة (Top-N Performers):** للشركات التي تملك أكثر من 5 فروع، يقوم النظام ديناميكياً بعرض أعلى 4 فروع مبيعاً ودمج الباقي في خط بياني واحد يسمى "أخرى" لمنع تشتت الرسوم البيانية.
+5. **دعم كامل للوضع الداكن (Dark Mode):** يدعم التحويل السلس بضغطة زر مع الحفاظ على وضوح وألوان النصوص والرسومات.
+6. **دعم اللغة العربية واتجاه RTL:** مصمم خصيصاً ليتناسب مع الواجهات العربية وباتجاه يمين-إلى-يسار دقيق.
