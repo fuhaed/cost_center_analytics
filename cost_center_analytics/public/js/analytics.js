@@ -128,9 +128,21 @@ function switchTab(tabId) {
     } else if (tabId === "daily-sales") {
         mainTitle.innerText = "تقرير المبيعات اليومي لمراكز التكلفة";
         subTitle.innerText = "تحليلات وجدول المبيعات اليومية التفصيلية حسب مراكز التكلفة";
-    } else {
+    } else if (tabId === "pl-report") {
         mainTitle.innerText = "تقرير الأرباح والخسائر لمراكز التكلفة";
         subTitle.innerText = "تحليل شامل للإيرادات والمصروفات وصافي الأرباح لمراكز التكلفة";
+    } else if (tabId === "leaderboard") {
+        mainTitle.innerText = "ترتيب أداء الفروع ومراكز التكلفة";
+        subTitle.innerText = "تصنيف الفروع والمراكز الأكثر مبيعاً وربحية خلال الفترة";
+        renderLeaderboard();
+    } else if (tabId === "expenses") {
+        mainTitle.innerText = "تحليل بنود المصروفات";
+        subTitle.innerText = "نظرة تفصيلية ومخططات بيانية لأماكن صرف ميزانية الشركة";
+        loadExpenseAnalysis();
+    } else if (tabId === "cashflow") {
+        mainTitle.innerText = "التدفقات النقدية والسيولة";
+        subTitle.innerText = "أرصدة حسابات الصناديق والسيولة المالية المتوفرة للبنوك";
+        loadCashFlow();
     }
 }
 
@@ -336,6 +348,15 @@ async function loadData() {
         // 3. Render P&L Report Tab Elements
         renderPLTable();
         renderPLCharts();
+        
+        // 4. Render active Executive tab if selected
+        if (currentTab === "leaderboard") {
+            renderLeaderboard();
+        } else if (currentTab === "expenses") {
+            loadExpenseAnalysis();
+        } else if (currentTab === "cashflow") {
+            loadCashFlow();
+        }
         
     } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -1391,3 +1412,306 @@ window.applyQuickDate = function(value, btnEl) {
     // Automatically trigger reload
     loadData();
 };
+
+
+// Executive Insights Rendering Logic
+
+window.renderLeaderboard = function() {
+    if (!dashboardData) return;
+    const container = document.getElementById("leaderboard-container");
+    container.innerHTML = "";
+    
+    // Filter only branch/leaf cost centers
+    const branches = dashboardData.cost_centers.filter(cc => !cc.is_group);
+    if (branches.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted);">لا توجد فروع لعرض البيانات المرجعية.</div>`;
+        return;
+    }
+    
+    const dates = Object.keys(dashboardData.daily_sales);
+    
+    // Calculate cumulative stats for each branch
+    const ranked = branches.map(cc => {
+        const totalSales = dates.reduce((sum, d) => sum + (dashboardData.daily_sales[d][cc.name] || 0), 0);
+        const pl = dashboardData.pl_data[cc.name] || { income: 0, expense: 0, profit: 0, margin: 0 };
+        return {
+            name: cc.cost_center_name || cc.name,
+            code: cc.name,
+            sales: totalSales,
+            profit: pl.profit || 0,
+            margin: pl.margin || 0
+        };
+    });
+    
+    // Sort by sales descending
+    ranked.sort((a, b) => b.sales - a.sales);
+    
+    // Render Top 3 visually
+    const top3Html = document.createElement("div");
+    top3Html.className = "leaderboard-top3";
+    
+    const medals = ["🥇", "🥈", "🥉"];
+    const top3 = ranked.slice(0, 3);
+    
+    top3.forEach((item, idx) => {
+        const card = document.createElement("div");
+        card.className = "leaderboard-top-card";
+        card.innerHTML = `
+            <div class="leaderboard-medal">${medals[idx]}</div>
+            <div class="leaderboard-top-info">
+                <div class="leaderboard-top-name">${item.name}</div>
+                <div class="leaderboard-top-sales">${formatCurrency(item.sales)}</div>
+                <div class="leaderboard-top-meta">
+                    <span>الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(item.profit)}</b></span>
+                    <span>الهامش: <b>${item.margin.toFixed(1)}%</b></span>
+                </div>
+            </div>
+        `;
+        top3Html.appendChild(card);
+    });
+    
+    container.appendChild(top3Html);
+    
+    // Render full list below
+    const listContainer = document.createElement("div");
+    listContainer.className = "leaderboard-list";
+    listContainer.style.marginTop = "20px";
+    
+    const maxSales = ranked[0] ? ranked[0].sales : 1;
+    
+    ranked.forEach((item, index) => {
+        const pct = maxSales > 0 ? (item.sales / maxSales) * 100 : 0;
+        const itemEl = document.createElement("div");
+        itemEl.className = "leaderboard-item";
+        itemEl.innerHTML = `
+            <div class="leaderboard-rank-num">${index + 1}</div>
+            <div class="leaderboard-item-name">${item.name}</div>
+            <div class="leaderboard-item-progress-wrapper">
+                <div class="leaderboard-progress-bg">
+                    <div class="leaderboard-progress-fill" style="width: ${pct}%"></div>
+                </div>
+                <div class="leaderboard-top-meta" style="margin-top: 2px;">
+                    <span>صافي الربح: <b style="color: ${item.profit >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(item.profit)}</b></span>
+                    <span>هامش الربح: <b>${item.margin.toFixed(1)}%</b></span>
+                </div>
+            </div>
+            <div class="leaderboard-item-sales">${formatCurrency(item.sales)}</div>
+        `;
+        listContainer.appendChild(itemEl);
+    });
+    
+    container.appendChild(listContainer);
+};
+
+let expensesDonutChart = null;
+
+window.loadExpenseAnalysis = function() {
+    const company = document.getElementById("filter-company").value;
+    const fromDate = document.getElementById("filter-from-date").value;
+    const toDate = document.getElementById("filter-to-date").value;
+    const warehouse = document.getElementById("filter-warehouse").value;
+    const branch = document.getElementById("filter-branch").value;
+    const costCenter = document.getElementById("filter-cost-center").value;
+    
+    if (!company) return;
+    
+    const args = { company, from_date: fromDate, to_date: toDate };
+    if (warehouse) args.warehouse = warehouse;
+    if (branch) args.branch = branch;
+    if (costCenter) args.cost_center = costCenter;
+    
+    showLoader(true);
+    callAPI("cost_center_analytics.api.get_expense_analysis", args).then(data => {
+        renderExpenseAnalysis(data);
+    }).catch(err => {
+        console.error(err);
+    }).finally(() => {
+        showLoader(false);
+    });
+};
+
+function renderExpenseAnalysis(data) {
+    const tableBody = document.getElementById("table-expenses-body");
+    tableBody.innerHTML = "";
+    
+    const chartMsg = document.getElementById("msg-expenses-chart");
+    
+    if (expensesDonutChart) {
+        expensesDonutChart.destroy();
+        expensesDonutChart = null;
+    }
+    
+    if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 30px;">لا توجد مصروفات مسجلة لهذه الفترة.</td></tr>`;
+        chartMsg.style.display = "block";
+        return;
+    }
+    
+    chartMsg.style.display = "none";
+    
+    const totalExpenses = data.reduce((sum, item) => sum + item.amount, 0);
+    
+    data.forEach(item => {
+        const pct = totalExpenses > 0 ? (item.amount / totalExpenses) * 100 : 0;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${item.account_name} <span class="text-secondary" style="font-size: 11px;">(${item.account.split(" - ")[0]})</span></td>
+            <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;">${formatCurrency(item.amount)}</td>
+            <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600; color: var(--primary);">${pct.toFixed(1)}%</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+    
+    const ctx = document.getElementById("chart-expenses-donut").getContext("2d");
+    
+    let chartLabels = [];
+    let chartData = [];
+    
+    if (data.length <= 6) {
+        chartLabels = data.map(item => item.account_name);
+        chartData = data.map(item => item.amount);
+    } else {
+        const top5 = data.slice(0, 5);
+        const others = data.slice(5);
+        chartLabels = top5.map(item => item.account_name);
+        chartData = top5.map(item => item.amount);
+        
+        chartLabels.push("مصاريف أخرى");
+        chartData.push(others.reduce((sum, item) => sum + item.amount, 0));
+    }
+    
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const textColor = isDark ? "#9ca3af" : "#64748b";
+    
+    const colors = [
+        '#6366f1', // Indigo
+        '#ef4444', // Rose
+        '#f59e0b', // Amber
+        '#10b981', // Emerald
+        '#8b5cf6', // Purple
+        '#06b6d4', // Cyan
+        '#94a3b8'  // Others
+    ];
+    
+    expensesDonutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                data: chartData,
+                backgroundColor: colors.slice(0, chartLabels.length),
+                borderWidth: isDark ? 2 : 1,
+                borderColor: isDark ? '#1e293b' : '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor,
+                        font: { family: 'Cairo', size: 10 }
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+}
+
+window.loadCashFlow = function() {
+    const company = document.getElementById("filter-company").value;
+    const fromDate = document.getElementById("filter-from-date").value;
+    const toDate = document.getElementById("filter-to-date").value;
+    const warehouse = document.getElementById("filter-warehouse").value;
+    const branch = document.getElementById("filter-branch").value;
+    const costCenter = document.getElementById("filter-cost-center").value;
+    
+    if (!company) return;
+    
+    const args = { company, from_date: fromDate, to_date: toDate };
+    if (warehouse) args.warehouse = warehouse;
+    if (branch) args.branch = branch;
+    if (costCenter) args.cost_center = costCenter;
+    
+    showLoader(true);
+    callAPI("cost_center_analytics.api.get_cash_flow", args).then(data => {
+        renderCashFlow(data);
+    }).catch(err => {
+        console.error(err);
+    }).finally(() => {
+        showLoader(false);
+    });
+};
+
+function renderCashFlow(data) {
+    const totalEl = document.getElementById("cashflow-total-liquidity");
+    const barEl = document.getElementById("cashflow-liquidity-bar");
+    const legendEl = document.getElementById("cashflow-liquidity-legend");
+    const tableBody = document.getElementById("table-cashflow-body");
+    
+    tableBody.innerHTML = "";
+    barEl.innerHTML = "";
+    legendEl.innerHTML = "";
+    
+    if (!data || data.length === 0) {
+        totalEl.innerText = "0.00 SAR";
+        tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 30px;">لا توجد حسابات سيولة نقدية متوفرة لهذه التصفية.</td></tr>`;
+        return;
+    }
+    
+    data.sort((a, b) => b.balance - a.balance);
+    
+    const totalLiquidity = data.reduce((sum, item) => sum + (item.balance > 0 ? item.balance : 0), 0);
+    totalEl.innerText = `${formatCurrency(totalLiquidity)}`;
+    
+    const colors = [
+        '#10b981', // Emerald
+        '#6366f1', // Indigo
+        '#f59e0b', // Amber
+        '#06b6d4', // Cyan
+        '#8b5cf6', // Purple
+        '#ec4899', // Pink
+        '#ef4444', // Rose
+    ];
+    
+    let colorIdx = 0;
+    
+    data.forEach(item => {
+        const tr = document.createElement("tr");
+        const typeAr = item.account_type === "Bank" ? "حساب بنكي" : "صندوق نقدي";
+        tr.innerHTML = `
+            <td style="font-weight: 700;">${item.account_name} <span class="text-secondary" style="font-size: 11px;">(${item.account.split(" - ")[0]})</span></td>
+            <td><span class="badge ${item.account_type === 'Bank' ? 'badge-group' : 'badge-branch'}">${typeAr}</span></td>
+            <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700; color: ${item.balance >= 0 ? '#10b981' : '#ef4444'};">
+                ${formatCurrency(item.balance)}
+            </td>
+        `;
+        tableBody.appendChild(tr);
+        
+        if (item.balance > 0 && totalLiquidity > 0) {
+            const pct = (item.balance / totalLiquidity) * 100;
+            const color = colors[colorIdx % colors.length];
+            
+            const segment = document.createElement("div");
+            segment.className = "liquidity-bar-segment";
+            segment.style.width = `${pct}%`;
+            segment.style.backgroundColor = color;
+            segment.title = `${item.account_name}: ${pct.toFixed(1)}%`;
+            barEl.appendChild(segment);
+            
+            const legendItem = document.createElement("div");
+            legendItem.className = "legend-item";
+            legendItem.innerHTML = `
+                <span class="legend-color-dot" style="background-color: ${color}"></span>
+                <span>${item.account_name} (${pct.toFixed(1)}%)</span>
+            `;
+            legendEl.appendChild(legendItem);
+            
+            colorIdx++;
+        }
+    });
+}
+

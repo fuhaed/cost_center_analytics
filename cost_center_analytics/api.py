@@ -484,3 +484,163 @@ def get_branch_details(company, cost_center, from_date, to_date, warehouse=None,
         "expenses": expenses,
         "sales_trend": sales_trend
     }
+
+
+def build_gl_conditions(company, from_date, to_date, warehouse=None, branch=None, cost_center=None):
+    conditions = [
+        "gle.company = %(company)s",
+        "gle.is_cancelled = 0",
+        "gle.posting_date BETWEEN %(from_date)s AND %(to_date)s"
+    ]
+    values = {
+        "company": company,
+        "from_date": from_date,
+        "to_date": to_date
+    }
+    
+    # 1. Warehouse filter
+    if warehouse:
+        vouchers = []
+        si_v = [r.parent for r in frappe.db.get_all("Sales Invoice Item", filters={"warehouse": warehouse}, fields=["parent"], distinct=True)]
+        vouchers.extend(si_v)
+        pi_v = [r.parent for r in frappe.db.get_all("Purchase Invoice Item", filters={"warehouse": warehouse}, fields=["parent"], distinct=True)]
+        vouchers.extend(pi_v)
+        dn_v = [r.parent for r in frappe.db.get_all("Delivery Note Item", filters={"warehouse": warehouse}, fields=["parent"], distinct=True)]
+        vouchers.extend(dn_v)
+        pr_v = [r.parent for r in frappe.db.get_all("Purchase Receipt Item", filters={"warehouse": warehouse}, fields=["parent"], distinct=True)]
+        vouchers.extend(pr_v)
+        se_v = [r.parent for r in frappe.db.sql("""
+            SELECT DISTINCT parent FROM `tabStock Entry Detail` 
+            WHERE s_warehouse = %(warehouse)s OR t_warehouse = %(warehouse)s
+        """, {"warehouse": warehouse}, as_dict=True)]
+        vouchers.extend(se_v)
+        
+        vouchers_list = list(set(vouchers)) if vouchers else ["DUMMY"]
+        conditions.append("""
+            (
+                gle.voucher_no IN %(vouchers_list)s 
+                OR gle.voucher_type NOT IN ('Sales Invoice', 'Purchase Invoice', 'Stock Entry', 'Delivery Note', 'Purchase Receipt')
+            )
+        """)
+        values["vouchers_list"] = vouchers_list
+
+    # 2. Branch filter
+    if branch:
+        branch_invoices = [
+            r.sales_invoice for r in frappe.db.get_all(
+                "Sales Invoice Additional Fields",
+                filters={"branch": branch, "invoice_doctype": "Sales Invoice"},
+                fields=["sales_invoice"]
+            )
+        ]
+        branch_invoices_list = branch_invoices if branch_invoices else ["DUMMY_INVOICE_ID"]
+        conditions.append("""
+            (
+                gle.voucher_no IN %(branch_invoices_list)s 
+                OR gle.voucher_type != 'Sales Invoice'
+            )
+        """)
+        values["branch_invoices_list"] = branch_invoices_list
+
+    # 3. Cost Center filter
+    if cost_center:
+        # Resolve descendants (including subgroups)
+        cc_info = frappe.db.get_value("Cost Center", cost_center, ["lft", "rgt"], as_dict=True)
+        if cc_info:
+            descendants = frappe.get_all(
+                "Cost Center",
+                filters={"lft": (">=", cc_info.lft), "rgt": ("<=", cc_info.rgt), "company": company},
+                pluck="name"
+            )
+            descendants_list = descendants if descendants else [cost_center]
+        else:
+            descendants_list = [cost_center]
+            
+        conditions.append("gle.cost_center IN %(descendants)s")
+        values["descendants"] = descendants_list
+
+    return conditions, values
+
+
+@frappe.whitelist()
+def get_expense_analysis(company, from_date, to_date, warehouse=None, branch=None, cost_center=None):
+    """
+    Fetch all expenses grouped by account for the selected period and filters.
+    """
+    from cost_center_analytics.permission import has_app_permission
+    if not has_app_permission():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+        
+    conditions, values = build_gl_conditions(company, from_date, to_date, warehouse, branch, cost_center)
+    conditions.append("acc.root_type = 'Expense'")
+    
+    query = frappe.db.sql(f"""
+        SELECT
+            gle.account,
+            acc.account_name,
+            SUM(gle.debit - gle.credit) as amount
+        FROM
+            `tabGL Entry` gle
+        INNER JOIN
+            `tabAccount` acc ON gle.account = acc.name
+        WHERE
+            { " AND ".join(conditions) }
+        GROUP BY
+            gle.account
+        ORDER BY
+            amount DESC
+    """, values, as_dict=True)
+    
+    result = []
+    for r in query:
+        val = flt(r.amount)
+        if val > 0:
+            result.append({
+                "account": r.account,
+                "account_name": r.account_name,
+                "amount": val
+            })
+            
+    return result
+
+
+@frappe.whitelist()
+def get_cash_flow(company, from_date, to_date, warehouse=None, branch=None, cost_center=None):
+    """
+    Fetch bank and cash account balances for the selected filters.
+    """
+    from cost_center_analytics.permission import has_app_permission
+    if not has_app_permission():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+        
+    conditions, values = build_gl_conditions(company, from_date, to_date, warehouse, branch, cost_center)
+    conditions.append("acc.account_type IN ('Bank', 'Cash')")
+    
+    query = frappe.db.sql(f"""
+        SELECT
+            gle.account,
+            acc.account_name,
+            acc.account_type,
+            SUM(gle.debit - gle.credit) as balance
+        FROM
+            `tabGL Entry` gle
+        INNER JOIN
+            `tabAccount` acc ON gle.account = acc.name
+        WHERE
+            { " AND ".join(conditions) }
+        GROUP BY
+            gle.account
+    """, values, as_dict=True)
+    
+    result = []
+    for r in query:
+        val = flt(r.balance)
+        result.append({
+            "account": r.account,
+            "account_name": r.account_name,
+            "account_type": r.account_type,
+            "balance": val
+        })
+        
+    return result
+

@@ -50,18 +50,39 @@
         </div>
         
         <nav class="sidebar-nav">
-            <a href="javascript:void(0)" class="nav-item active" data-tab="dashboard">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>الصفحة الرئيسية</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-tab="daily-sales">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span>المبيعات اليومية</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" data-tab="pl-report">
-                <i class="fa-solid fa-calculator"></i>
-                <span>الأرباح والخسائر (P&L)</span>
-            </a>
+            <!-- Core Reports Category -->
+            <div class="nav-category">
+                <div class="nav-category-title">التقارير الأساسية</div>
+                <a href="javascript:void(0)" class="nav-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>الصفحة الرئيسية</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="daily-sales">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>المبيعات اليومية</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="pl-report">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>الأرباح والخسائر (P&L)</span>
+                </a>
+            </div>
+
+            <!-- Executive Insights Category -->
+            <div class="nav-category">
+                <div class="nav-category-title">تحليلات الملاك</div>
+                <a href="javascript:void(0)" class="nav-item" data-tab="leaderboard">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>ترتيب أداء الفروع</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="expenses">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>تحليل المصروفات</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-item" data-tab="cashflow">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>التدفقات النقدية</span>
+                </a>
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -287,6 +308,85 @@
                     </table>
                 </div>
                 <div class="pagination-bar" id="pl-pagination-bar"></div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Branch Leaderboard Section -->
+        <div class="tab-content" id="tab-leaderboard">
+            <div class="dashboard-section-title">
+                <h2>ترتيب أداء الفروع ومراكز التكلفة</h2>
+            </div>
+            <div class="leaderboard-container-wrapper" id="leaderboard-container">
+                <!-- Dynamic Rank Cards & List -->
+            </div>
+        </div>
+
+        <!-- Tab 4: Expense Analysis Section -->
+        <div class="tab-content" id="tab-expenses">
+            <div class="dashboard-section-title">
+                <h2>تحليل المصروفات التشغيلية والتأسيسية</h2>
+            </div>
+            <div class="expense-analytics-row">
+                <div class="expense-chart-box">
+                    <div class="chart-header">توزيع بنود المصروفات</div>
+                    <div class="chart-body-donut" style="position: relative; height: 320px; width: 100%;">
+                        <canvas id="chart-expenses-donut"></canvas>
+                        <div class="no-data-msg" id="msg-expenses-chart">لا توجد مصروفات مسجلة لهذه الفترة</div>
+                    </div>
+                </div>
+                <div class="expense-table-box">
+                    <div class="chart-header">تفاصيل المصروفات الترتيبية</div>
+                    <div class="table-container">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>حساب المصروف</th>
+                                    <th class="text-right">المبلغ</th>
+                                    <th class="text-right">النسبة (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-expenses-body">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Cash Flow Section -->
+        <div class="tab-content" id="tab-cashflow">
+            <div class="dashboard-section-title">
+                <h2>التدفقات النقدية والسيولة النقدية المتوفرة</h2>
+            </div>
+            <div class="cashflow-liquidity-container">
+                <div class="liquidity-summary-card">
+                    <div class="liquidity-title">إجمالي السيولة النقدية المتوفرة</div>
+                    <div class="liquidity-value" id="cashflow-total-liquidity">0.00 SAR</div>
+                    <div class="liquidity-visual-bar" id="cashflow-liquidity-bar">
+                        <!-- Dynamic percentages color bar -->
+                    </div>
+                    <div class="liquidity-legend" id="cashflow-liquidity-legend">
+                        <!-- Dynamic Legend -->
+                    </div>
+                </div>
+                <div class="table-card" style="margin-top: 16px;">
+                    <div class="chart-header">تفصيل أرصدة حسابات الصناديق والبنوك</div>
+                    <div class="table-container">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>اسم الحساب</th>
+                                    <th>نوع الحساب</th>
+                                    <th class="text-right">الرصيد الحالي المتوفر</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-cashflow-body">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
