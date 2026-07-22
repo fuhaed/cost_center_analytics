@@ -1,56 +1,58 @@
-# Cost Center Analytics (تحليلات مراكز التكلفة)
+# Cost Center Analytics
 
-تطبيق مخصص وبوابة تحليلات مالية متقدمة لمراكز التكلفة والفروع في بيئة **Frappe / ERPNext**. يتيح التطبيق عرض المبيعات اليومية، وتحليلات الأرباح والخسائر (P&L)، وإجمالي الإيرادات والمصروفات بدقة محاسبية عالية ورسوم بيانية ذكية تفاعلية.
+A custom advanced financial analytics dashboard portal for Cost Centers and Branches in **Frappe / ERPNext**. This app provides beautiful interactive charts, tabular reports, and core financial summaries (Total Sales, Total Income, Total Expenses, and Net Profit/Loss) fetched directly from general ledger entries.
 
 ---
 
-## 🚀 طريقة التنصيب السريع (Quick Installation Guide)
+## 🚀 Quick Installation Guide
 
-لتنصيب التطبيق وتفعيله على موقعك بأسرع طريقة، قم بتشغيل الأوامر التالية بالتتابع داخل مجلد الـ `bench` الخاص بك:
+To install and configure this application on your bench, run the following commands sequentially inside your `frappe-bench` directory:
 
 ```bash
-# 1. الانتقال إلى مجلد البينش الرئيسي
+# 1. Navigate to your main bench directory
 cd ~/frappe-bench
 
-# 2. تحميل التطبيق من مستودع الـ GitHub
+# 2. Fetch the app from the GitHub repository
 bench get-app https://github.com/fuhaed/cost_center_analytics.git
 
-# 3. تثبيت التطبيق على موقعك المالي المحدد
+# 3. Install the app on your target site
 bench --site [your-site-name] install-app cost_center_analytics
 
-# 4. بناء الأصول وبناء ملفات الجافا سكريبت والتصميمات
+# 4. Build assets for production
 bench build --app cost_center_analytics
 
-# 5. تنظيف التخزين المؤقت للموقع
+# 5. Clear site cache
 bench --site [your-site-name] clear-cache
 
-# 6. إعادة تشغيل خوادم النظام
+# 6. Restart the bench supervisors
 bench restart
 ```
-*💡 ملاحظة: استبدل `[your-site-name]` باسم موقعك الفعلي (مثال: `erp.erpnext.support` أو `site1.local`).*
+*💡 Note: Replace `[your-site-name]` with your active site domain (e.g. `erp.erpnext.support` or `site1.local`).*
 
 ---
 
-## 🛡️ نظام الصلاحيات المطور (Permissions Guide)
+## 🛡️ User Permission & Roles Guide
 
-يقوم التطبيق تلقائياً أثناء التنصيب بإنشاء دور مخصص في قاعدة البيانات لتسهيل توزيع الصلاحيات:
-* **الدور المخصص المنشأ:** `Cost Center Analytics User`
-* **المصرح لهم بالدخول افتراضياً:**
-  * مدير النظام (`System Manager`) والمسؤول الرئيسي (`Administrator`).
-  * أي مستخدم عادي أو موظف يتم إسناد دور `Cost Center Analytics User` له من قبل الإدارة.
+During installation, the application automatically provisions a custom role in the database:
+* **Custom Role Created:** `Cost Center Analytics User`
+* **Default Authorized Roles:**
+  * System Manager & Administrator (implicit access for system admins).
+  * Any normal user or employee explicitly assigned the `Cost Center Analytics User` role.
 
-### خطوات منح الصلاحية لموظف:
-1. اذهب إلى نموذج المستخدم (`User`) في لوحة تحكم ERPNext.
-2. اختر المستخدم المطلوب واذهب لقسم الأدوار (Roles).
-3. قم بتفعيل الخيار بجوار دور **`Cost Center Analytics User`** ثم احفظ التغييرات.
+### Steps to assign access to an employee:
+1. Log in to ERPNext as an Administrator or System Manager.
+2. Search and open the **User** list and select the target user.
+3. Scroll down to the **Roles** checklist table.
+4. Check the box next to **`Cost Center Analytics User`** and save the document.
+5. The user will immediately be able to access the dashboard at `/cc-analytics`.
 
 ---
 
-## ✨ المميزات الرئيسية (Core Features)
+## ✨ Key Features
 
-1. **دقة محاسبية مطلقة:** يتم جلب الحسابات وصافي الأرباح مباشرة من قيود دفتر الأستاذ العام (`tabGL Entry`) المطابقة لدفاتر الشركة المالية.
-2. **فلاتر سريعة للتاريخ (Date Pills):** أزرار تفاعلية مدمجة (اليوم، الأمس، الأسبوع، الشهر، الشهر الماضي، السنة) تعيد فلترة وتحديث البيانات بضغطة زر واحدة.
-3. **تجميع ذكي ومقروء للمحور الزمني:** تجميع تلقائي للرسومات البيانية (يومياً، أسبوعياً، شهرياً) بحسب طول الفترة المختارة لتظل الرسوم واضحة وسهلة القراءة دائماً.
-4. **تجميع ذكي للفروع الكثيرة (Top-N Performers):** للشركات التي تملك أكثر من 5 فروع، يقوم النظام ديناميكياً بعرض أعلى 4 فروع مبيعاً ودمج الباقي في خط بياني واحد يسمى "أخرى" لمنع تشتت الرسوم البيانية.
-5. **دعم كامل للوضع الداكن (Dark Mode):** يدعم التحويل السلس بضغطة زر مع الحفاظ على وضوح وألوان النصوص والرسومات.
-6. **دعم اللغة العربية واتجاه RTL:** مصمم خصيصاً ليتناسب مع الواجهات العربية وباتجاه يمين-إلى-يسار دقيق.
+1. **General Ledger Precision:** Core totals (Revenue, Expense, Net Profit) are fetched directly from the general ledger database (`tabGL Entry`), ensuring absolute financial accuracy.
+2. **Quick Date Filter Pills:** Dynamic modern date selector buttons (Today, Yesterday, This Week, This Month, Last Month, This Year) that automatically calculate dates and refresh data.
+3. **Smart Time-Series Aggregation:** Automatically switches chart X-axis grouping dynamically (Daily for ranges <= 7 days, Weekly for ranges 8 to 31 days, and Monthly for ranges > 31 days) to keep charts legible.
+4. **Top-N Performance Grouping:** For companies with many branches/groups, the app automatically plots the top 4 performers and groups the remaining ones into a single `"Others"` dataset, avoiding cluttered visual charts.
+5. **Dark & Light Mode Toggle:** Seamless single-click transition with premium color palettes.
+6. **RTL Direction & Arabic Support:** Built to adapt correctly to both LTR and RTL orientations based on standard browser language configuration.
