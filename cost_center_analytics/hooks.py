@@ -8,18 +8,18 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["frappe", "erpnext"]
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "cost_center_analytics",
-# 		"logo": "/assets/cost_center_analytics/logo.png",
-# 		"title": "Cost Center Analytics",
-# 		"route": "/cost_center_analytics",
-# 		"has_permission": "cost_center_analytics.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "cost_center_analytics",
+		"logo": "/assets/cost_center_analytics/images/logo.png",
+		"title": "Cost Center Analytics",
+		"route": "/cc-analytics",
+		"has_permission": "cost_center_analytics.permission.has_app_permission"
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -83,7 +83,7 @@ app_license = "mit"
 # ------------
 
 # before_install = "cost_center_analytics.install.before_install"
-# after_install = "cost_center_analytics.install.after_install"
+after_install = "cost_center_analytics.install.after_install"
 
 # Uninstallation
 # ------------
@@ -246,4 +246,9 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+website_route_rules = [
+	{"from_route": "/cc-analytics", "to_route": "cc-analytics"},
+	{"from_route": "/cc-analytics/<path:app_path>", "to_route": "cc-analytics"}
+]
 

@@ -1,0 +1,377 @@
+{% extends "templates/web.html" %}
+{% block title %}{{ _("تحليلات مراكز التكلفة - لوحة التحكم") }}{% endblock %}
+
+{% block head_include %}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6366f1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* Reset and hide default web wrapper elements */
+    html, body, .container, .container-fluid, .web-content, .page_content,
+    .my-4, .my-3, .my-2, .my-1, .mt-4, .mt-3, .mb-4, .mb-3, .web-page-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    .navbar, .web-footer, .footer, .breadcrumbs, .breadcrumb, .page-breadcrumbs,
+    .page-head, .web-page-header, .page-header {
+        display: none !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .page-container, .web-page, .main-page {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+</style>
+<link rel="stylesheet" href="/assets/cost_center_analytics/css/analytics.css?v={{ frappe.utils.now() }}">
+<!-- Include Chart.js via CDN for premium responsive charting -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo" id="sidebar-logo-container">
+                <i class="fa-solid fa-chart-pie" id="sidebar-default-logo"></i>
+            </div>
+            <div class="brand-name">
+                <h3 id="sidebar-company-name">مراكز التكلفة</h3>
+                <span id="sidebar-company-sub">تحليلات مالية متقدمة</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="javascript:void(0)" class="nav-item active" data-tab="dashboard">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>الصفحة الرئيسية</span>
+            </a>
+            <a href="javascript:void(0)" class="nav-item" data-tab="daily-sales">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span>المبيعات اليومية</span>
+            </a>
+            <a href="javascript:void(0)" class="nav-item" data-tab="pl-report">
+                <i class="fa-solid fa-calculator"></i>
+                <span>الأرباح والخسائر (P&L)</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar">
+                    {{ user_fullname[:2] | upper if user_fullname else 'CC' }}
+                </div>
+                <div class="user-details">
+                    <span class="username">{{ user_fullname }}</span>
+                    <span class="user-role">إدارة الحسابات</span>
+                </div>
+            </div>
+            <button class="btn-logout" id="btnLogout" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>تسجيل الخروج</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Header / Navigation -->
+        <header class="header">
+            <div class="header-title-section">
+                <h1 id="page-main-title">تقرير المبيعات اليومي لمراكز التكلفة</h1>
+                <p id="page-sub-title" class="text-secondary">تحليلات المبيعات والأرباح التفصيلية لمراكز التكلفة والفروع</p>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="تغيير المظهر">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Filter Bar -->
+        <section class="filters-card">
+            <div class="filter-group">
+                <label class="filter-label" for="filter-company">الشركة</label>
+                <select class="filter-select" id="filter-company" onchange="onCompanyChange()">
+                    <!-- Loaded dynamically -->
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-from-date">من تاريخ</label>
+                <input class="filter-input" type="date" id="filter-from-date">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-to-date">إلى تاريخ</label>
+                <input class="filter-input" type="date" id="filter-to-date">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-warehouse">المستودع</label>
+                <select class="filter-select" id="filter-warehouse">
+                    <option value="">كل المستودعات</option>
+                    <!-- Loaded dynamically -->
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-branch">الفرع</label>
+                <select class="filter-select" id="filter-branch">
+                    <option value="">كل الفروع</option>
+                    <!-- Loaded dynamically -->
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-cost-center">مركز التكلفة</label>
+                <select class="filter-select" id="filter-cost-center">
+                    <option value="">كل مراكز التكلفة</option>
+                    <!-- Loaded dynamically -->
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-cc-type">نوع مراكز التكلفة</label>
+                <select class="filter-select" id="filter-cc-type">
+                    <option value="all">الكل (رئيسية وفرعية)</option>
+                    <option value="branches">مراكز التكلفة الفرعية فقط</option>
+                    <option value="groups">مجموعات مراكز التكلفة فقط</option>
+                </select>
+            </div>
+            <div class="filter-actions-container">
+                <div class="quick-date-pills">
+                    <button class="btn-pill" onclick="applyQuickDate('today', this)">اليوم</button>
+                    <button class="btn-pill" onclick="applyQuickDate('yesterday', this)">الأمس</button>
+                    <button class="btn-pill" onclick="applyQuickDate('this-week', this)">الأسبوع</button>
+                    <button class="btn-pill" onclick="applyQuickDate('this-month', this)">الشهر</button>
+                    <button class="btn-pill" onclick="applyQuickDate('last-month', this)">الشهر الماضي</button>
+                    <button class="btn-pill" onclick="applyQuickDate('this-year', this)">السنة</button>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" id="btn-refresh" onclick="loadData()">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>تحديث البيانات</span>
+                    </button>
+                    <button class="btn btn-secondary" id="btn-export" onclick="exportToExcel()">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>تصدير Excel</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- KPI Grid Summary -->
+        <section class="kpi-grid">
+            <div class="kpi-card card-sales">
+                <div class="kpi-header">
+                    <span class="kpi-title">إجمالي المبيعات</span>
+                    <span class="kpi-icon sales"><i class="fa-solid fa-coins"></i></span>
+                </div>
+                <div class="kpi-value-container">
+                    <div class="kpi-value" id="kpi-total-sales">0.00</div>
+                    <span class="kpi-badge success" id="kpi-sales-badge">مبيعات</span>
+                </div>
+                <div class="kpi-desc">شامل جميع مراكز التكلفة للفترة</div>
+            </div>
+            <div class="kpi-card card-income">
+                <div class="kpi-header">
+                    <span class="kpi-title">إجمالي الإيرادات</span>
+                    <span class="kpi-icon revenue"><i class="fa-solid fa-arrow-trend-up"></i></span>
+                </div>
+                <div class="kpi-value-container">
+                    <div class="kpi-value" id="kpi-total-income">0.00</div>
+                    <span class="kpi-badge neutral" id="kpi-income-badge">100%</span>
+                </div>
+                <div class="kpi-desc">حسابات الإيرادات المسجلة بالكامل</div>
+            </div>
+            <div class="kpi-card card-expenses">
+                <div class="kpi-header">
+                    <span class="kpi-title">إجمالي المصروفات</span>
+                    <span class="kpi-icon expenses"><i class="fa-solid fa-arrow-trend-down"></i></span>
+                </div>
+                <div class="kpi-value-container">
+                    <div class="kpi-value" id="kpi-total-expenses">0.00</div>
+                    <span class="kpi-badge danger" id="kpi-expenses-badge">0%</span>
+                </div>
+                <div class="kpi-desc">المصاريف التشغيلية والتأسيسية بالفترة</div>
+            </div>
+            <div class="kpi-card card-profit">
+                <div class="kpi-header">
+                    <span class="kpi-title">صافي الربح / الخسارة</span>
+                    <span class="kpi-icon profit" id="kpi-profit-icon"><i class="fa-solid fa-wallet"></i></span>
+                </div>
+                <div class="kpi-value-container">
+                    <div class="kpi-value" id="kpi-net-profit">0.00</div>
+                    <span class="kpi-badge" id="kpi-profit-badge">0%</span>
+                </div>
+                <div class="kpi-desc" id="kpi-profit-desc">الإيرادات - المصاريف</div>
+            </div>
+        </section>
+
+        <!-- Tab 1: Dashboard Home Section -->
+        <div class="tab-content active" id="tab-dashboard">
+            <!-- Charts Section -->
+            <div class="dashboard-section-title">
+                <h2 id="sales-charts-title">الرسوم البيانية للمبيعات</h2>
+            </div>
+            <div class="charts-row">
+                <div class="chart-panel">
+                    <div class="chart-header">مبيعات الفروع (Branches)</div>
+                    <div class="chart-body">
+                        <canvas id="chart-sales-branches"></canvas>
+                        <div class="no-data-msg" id="msg-sales-branches">لا توجد بيانات متاحة للفترة المحددة</div>
+                    </div>
+                </div>
+                <div class="chart-panel">
+                    <div class="chart-header">مبيعات مجموعات مراكز التكلفة</div>
+                    <div class="chart-body">
+                        <canvas id="chart-sales-groups"></canvas>
+                        <div class="no-data-msg" id="msg-sales-groups">لا توجد بيانات متاحة للفترة المحددة</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Daily Sales Report Section -->
+        <div class="tab-content" id="tab-daily-sales">
+            <!-- Table Section -->
+            <div class="dashboard-section-title">
+                <h2>جدول المبيعات اليومية حسب مراكز التكلفة</h2>
+            </div>
+            <div class="table-card">
+                <div class="table-container">
+                    <table class="report-table" id="table-daily-sales-el">
+                        <thead>
+                            <tr id="table-daily-sales-header">
+                                <th>التاريخ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-daily-sales-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-bar" id="sales-pagination-bar"></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: P&L Report Section -->
+        <div class="tab-content" id="tab-pl-report">
+
+
+            <!-- Detailed Hierarchy Table -->
+            <div class="dashboard-section-title">
+                <h2>جدول الأرباح والخسائر التفصيلي لمراكز التكلفة</h2>
+            </div>
+            <div class="table-card">
+                <div class="table-container">
+                    <table class="report-table" id="table-pl-el">
+                        <thead>
+                            <tr>
+                                <th>مركز التكلفة</th>
+                                <th>النوع</th>
+                                <th class="text-right">إجمالي الإيرادات</th>
+                                <th class="text-right">إجمالي المصروفات</th>
+                                <th class="text-right">صافي الربح / الخسارة</th>
+                                <th class="text-right">هامش الربح (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-pl-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-bar" id="pl-pagination-bar"></div>
+            </div>
+        </div>
+    </main>
+<!-- Cost Center Drilldown Detail Modal -->
+<div class="drilldown-modal-overlay" id="drilldownModal" onclick="closeDrilldownModal(event)">
+    <div class="drilldown-modal-container" onclick="event.stopPropagation()">
+        <div class="drilldown-modal-header">
+            <div>
+                <h2 id="modal-branch-name">تفاصيل مركز التكلفة</h2>
+                <p id="modal-branch-subtitle" class="text-secondary">تفصيل الحسابات المالية وحركة المبيعات خلال الفترة</p>
+            </div>
+            <button class="modal-close-btn" onclick="hideDrilldownModal()">&times;</button>
+        </div>
+        
+        <div class="drilldown-modal-body">
+            <!-- Modal KPIs -->
+            <div class="modal-kpis-grid">
+                <div class="modal-kpi-card m-sales">
+                    <div class="modal-kpi-title">إجمالي المبيعات</div>
+                    <div class="modal-kpi-value" id="modal-kpi-sales">0.00</div>
+                </div>
+                <div class="modal-kpi-card m-income">
+                    <div class="modal-kpi-title">إجمالي الإيرادات</div>
+                    <div class="modal-kpi-value" id="modal-kpi-income">0.00</div>
+                </div>
+                <div class="modal-kpi-card m-expense">
+                    <div class="modal-kpi-title">إجمالي المصروفات</div>
+                    <div class="modal-kpi-value" id="modal-kpi-expense">0.00</div>
+                </div>
+                <div class="modal-kpi-card m-profit">
+                    <div class="modal-kpi-title">صافي الربح / الخسارة</div>
+                    <div class="modal-kpi-value" id="modal-kpi-profit">0.00</div>
+                </div>
+            </div>
+            
+            <!-- Accounts Breakdown Tables -->
+            <div class="modal-tables-container">
+                <!-- Income Accounts -->
+                <div class="modal-table-box">
+                    <div class="modal-table-title text-success">
+                        <i class="fa-solid fa-circle-arrow-down"></i> تفصيل حسابات الإيرادات
+                    </div>
+                    <div class="modal-table-wrapper">
+                        <table class="modal-report-table">
+                            <thead>
+                                <tr>
+                                    <th>الحساب</th>
+                                    <th class="text-right">المبلغ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-income-table-body">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Expense Accounts -->
+                <div class="modal-table-box">
+                    <div class="modal-table-title text-danger">
+                        <i class="fa-solid fa-circle-arrow-up"></i> تفصيل حسابات المصروفات
+                    </div>
+                    <div class="modal-table-wrapper">
+                        <table class="modal-report-table">
+                            <thead>
+                                <tr>
+                                    <th>الحساب</th>
+                                    <th class="text-right">المبلغ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-expense-table-body">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loader Spinner Overlay -->
+<div class="spinner-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+</div>
+
+<script src="/assets/cost_center_analytics/js/analytics.js?v={{ frappe.utils.now() }}"></script>
+{% endblock %}
