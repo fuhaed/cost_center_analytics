@@ -775,4 +775,66 @@ def get_salesperson_leaderboard(company, from_date, to_date, cost_center=None):
     return result
 
 
+@frappe.whitelist()
+def get_warehouse_stock(company, warehouse=None):
+    """
+    Fetch quantities and cost valuation of stock per warehouse.
+    If warehouse is specified, fetch item details inside that warehouse.
+    """
+    from cost_center_analytics.permission import has_app_permission
+    if not has_app_permission():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+        
+    if warehouse:
+        query = frappe.db.sql("""
+            SELECT
+                bin.item_code,
+                item.item_name,
+                bin.actual_qty as qty,
+                bin.stock_value as valuation,
+                bin.valuation_rate as rate
+            FROM
+                `tabBin` bin
+            INNER JOIN
+                `tabItem` item ON bin.item_code = item.name
+            INNER JOIN
+                `tabWarehouse` wh ON bin.warehouse = wh.name
+            WHERE
+                wh.company = %(company)s
+                AND bin.warehouse = %(warehouse)s
+                AND bin.actual_qty != 0
+            ORDER BY
+                bin.stock_value DESC
+        """, {"company": company, "warehouse": warehouse}, as_dict=True)
+        return {
+            "type": "items",
+            "warehouse_name": frappe.db.get_value("Warehouse", warehouse, "warehouse_name") or warehouse,
+            "data": [{"item_code": r.item_code, "item_name": r.item_name, "qty": flt(r.qty), "valuation": flt(r.valuation), "rate": flt(r.rate)} for r in query]
+        }
+    else:
+        query = frappe.db.sql("""
+            SELECT
+                bin.warehouse,
+                wh.warehouse_name,
+                SUM(bin.actual_qty) as total_qty,
+                SUM(bin.stock_value) as total_value,
+                COUNT(DISTINCT bin.item_code) as unique_items
+            FROM
+                `tabBin` bin
+            INNER JOIN
+                `tabWarehouse` wh ON bin.warehouse = wh.name
+            WHERE
+                wh.company = %(company)s
+            GROUP BY
+                bin.warehouse, wh.warehouse_name
+            ORDER BY
+                total_value DESC
+        """, {"company": company}, as_dict=True)
+        return {
+            "type": "warehouses",
+            "data": [{"warehouse": r.warehouse, "warehouse_name": r.warehouse_name, "total_qty": flt(r.total_qty), "total_value": flt(r.total_value), "unique_items": int(r.unique_items)} for r in query]
+        }
+
+
+
 

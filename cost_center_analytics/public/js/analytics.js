@@ -143,6 +143,10 @@ function switchTab(tabId) {
         mainTitle.innerText = "التدفقات النقدية والسيولة";
         subTitle.innerText = "أرصدة حسابات الصناديق والسيولة المالية المتوفرة للبنوك";
         loadCashFlow();
+    } else if (tabId === "stock") {
+        mainTitle.innerText = "مخزون المستودعات وتقييمها";
+        subTitle.innerText = "تحليل كميات وقيمة البضاعة المتوفرة في مستودعات الشركة";
+        loadWarehouseStock();
     }
 }
 
@@ -380,6 +384,8 @@ async function loadData() {
             loadExpenseAnalysis();
         } else if (currentTab === "cashflow") {
             loadCashFlow();
+        } else if (currentTab === "stock") {
+            loadWarehouseStock();
         } else if (currentTab === "comparison") {
             renderComparison();
         } else if (currentTab === "peakhours") {
@@ -2021,5 +2027,95 @@ function renderSalespersons(data) {
 window.exportPDF = function() {
     window.print();
 };
+
+window.loadWarehouseStock = function() {
+    const company = document.getElementById("filter-company").value;
+    const warehouse = document.getElementById("filter-warehouse").value;
+    
+    if (!company) return;
+    
+    const args = { company: company };
+    if (warehouse) args.warehouse = warehouse;
+    
+    showLoader(true);
+    callAPI("cost_center_analytics.api.get_warehouse_stock", args).then(data => {
+        renderWarehouseStock(data);
+    }).catch(err => {
+        console.error(err);
+    }).finally(() => {
+        showLoader(false);
+    });
+};
+
+function renderWarehouseStock(res) {
+    const titleEl = document.getElementById("stock-section-title");
+    const headerEl = document.getElementById("stock-table-header");
+    const tableHeader = document.getElementById("table-stock-header");
+    const tableBody = document.getElementById("table-stock-body");
+    
+    tableHeader.innerHTML = "";
+    tableBody.innerHTML = "";
+    
+    if (res.type === "items") {
+        titleEl.innerText = `مخزون مستودع: ${res.warehouse_name}`;
+        headerEl.innerText = `تفاصيل كميات وتكاليف البضاعة في المستودع المحدد`;
+        
+        tableHeader.innerHTML = `
+            <tr>
+                <th>كود الصنف</th>
+                <th>اسم الصنف</th>
+                <th class="text-right">الكمية المتوفرة</th>
+                <th class="text-right">متوسط تكلفة الحبة</th>
+                <th class="text-right">إجمالي تكلفة المخزون</th>
+            </tr>
+        `;
+        
+        if (!res.data || res.data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">لا يوجد مخزون مسجل في هذا المستودع.</td></tr>`;
+            return;
+        }
+        
+        res.data.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="font-weight: 700; color: var(--text-main);">${item.item_code}</td>
+                <td>${item.item_name}</td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;"><span dir="ltr">${item.qty.toLocaleString()}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family);"><span dir="ltr">${formatCurrency(item.rate)}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700; color: var(--primary);"><span dir="ltr">${formatCurrency(item.valuation)}</span></td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    } else {
+        titleEl.innerText = "تحليل مخزون وتقييم المستودعات";
+        headerEl.innerText = "تفصيل كميات وتكلفة بضاعة المستودعات على مستوى الشركة";
+        
+        tableHeader.innerHTML = `
+            <tr>
+                <th>اسم المستودع</th>
+                <th class="text-right">عدد الأصناف الفريدة</th>
+                <th class="text-right">إجمالي كميات البضاعة</th>
+                <th class="text-right">إجمالي تكلفة المخزون</th>
+            </tr>
+        `;
+        
+        if (!res.data || res.data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">لا يوجد مخزون مسجل في أي مستودع للشركة.</td></tr>`;
+            return;
+        }
+        
+        res.data.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td style="font-weight: 700; color: var(--text-main);">${item.warehouse_name || item.warehouse}</td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family);">${item.unique_items.toLocaleString()}</td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;"><span dir="ltr">${item.total_qty.toLocaleString()}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700; color: var(--primary);"><span dir="ltr">${formatCurrency(item.total_value)}</span></td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+}
+
 
 
