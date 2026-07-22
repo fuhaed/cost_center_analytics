@@ -65,7 +65,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     
     document.getElementById("filter-warehouse").addEventListener("change", loadData);
-    document.getElementById("filter-branch").addEventListener("change", loadData);
     document.getElementById("filter-cost-center").addEventListener("change", loadData);
 
     const clearActivePills = () => {
@@ -247,11 +246,9 @@ async function loadFiltersData(company) {
     try {
         const res = await callAPI("cost_center_analytics.api.get_filters_data", { company });
         const warehouseSelect = document.getElementById("filter-warehouse");
-        const branchSelect = document.getElementById("filter-branch");
         const costCenterSelect = document.getElementById("filter-cost-center");
         
         warehouseSelect.innerHTML = '<option value="">كل المستودعات</option>';
-        branchSelect.innerHTML = '<option value="">كل الفروع</option>';
         costCenterSelect.innerHTML = '<option value="">كل مراكز التكلفة</option>';
         
         if (res) {
@@ -261,15 +258,6 @@ async function loadFiltersData(company) {
                     option.value = w.name;
                     option.text = w.warehouse_name || w.name;
                     warehouseSelect.appendChild(option);
-                });
-            }
-            if (res.branches) {
-                window.branchesList = res.branches;
-                res.branches.forEach(b => {
-                    const option = document.createElement("option");
-                    option.value = b.name;
-                    option.text = b.cost_center_name || b.name;
-                    branchSelect.appendChild(option);
                 });
             }
             if (res.cost_centers) {
@@ -340,7 +328,6 @@ async function loadData() {
     const from_date = document.getElementById("filter-from-date").value;
     const to_date = document.getElementById("filter-to-date").value;
     const warehouse = document.getElementById("filter-warehouse").value;
-    const branch = document.getElementById("filter-branch").value;
     const cost_center = document.getElementById("filter-cost-center").value;
     
     if (!company || !from_date || !to_date) {
@@ -355,7 +342,6 @@ async function loadData() {
             from_date: from_date,
             to_date: to_date,
             warehouse: warehouse,
-            branch: branch,
             cost_center: cost_center
         });
         
@@ -860,37 +846,7 @@ function renderDailySalesCharts() {
         return datasets;
     }
 
-    // Chart 1: Branches Sales
-    if (keys.length > 0 && branches.length > 0) {
-        document.getElementById("msg-sales-branches").style.display = "none";
-        
-        const datasets = getTopDatasets(
-            branches,
-            (k, name) => (aggregated.branch_sales[k] || {})[name] || 0,
-            'name',
-            'name',
-            true
-        );
 
-        const ctx = document.getElementById("chart-sales-branches").getContext("2d");
-        charts.salesBranches = new Chart(ctx, {
-            type: 'line',
-            data: { labels: labels, datasets: datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { labels: { color: textColor, font: { family: 'Cairo', weight: 'bold' } } }
-                },
-                scales: {
-                    x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Cairo' } } },
-                    y: { grid: { color: gridColor }, ticks: { color: textColor } }
-                }
-            }
-        });
-    } else {
-        document.getElementById("msg-sales-branches").style.display = "block";
-    }
 
     // Chart 2: Groups Sales
     if (keys.length > 0 && groups.length > 0) {
@@ -1546,14 +1502,12 @@ window.loadExpenseAnalysis = function() {
     const fromDate = document.getElementById("filter-from-date").value;
     const toDate = document.getElementById("filter-to-date").value;
     const warehouse = document.getElementById("filter-warehouse").value;
-    const branch = document.getElementById("filter-branch").value;
     const costCenter = document.getElementById("filter-cost-center").value;
     
     if (!company) return;
     
     const args = { company, from_date: fromDate, to_date: toDate };
     if (warehouse) args.warehouse = warehouse;
-    if (branch) args.branch = branch;
     if (costCenter) args.cost_center = costCenter;
     
     showLoader(true);
@@ -1662,14 +1616,12 @@ window.loadCashFlow = function() {
     const fromDate = document.getElementById("filter-from-date").value;
     const toDate = document.getElementById("filter-to-date").value;
     const warehouse = document.getElementById("filter-warehouse").value;
-    const branch = document.getElementById("filter-branch").value;
     const costCenter = document.getElementById("filter-cost-center").value;
     
     if (!company) return;
     
     const args = { company, from_date: fromDate, to_date: toDate };
     if (warehouse) args.warehouse = warehouse;
-    if (branch) args.branch = branch;
     if (costCenter) args.cost_center = costCenter;
     
     showLoader(true);
