@@ -745,21 +745,21 @@ def get_salesperson_leaderboard(company, from_date, to_date, cost_center=None):
         
     query = frappe.db.sql(f"""
         SELECT
-            st.sales_person,
+            si.owner,
+            COALESCE(u.full_name, si.owner) as salesperson_name,
             SUM(
-                CASE 
-                    WHEN st.allocated_amount > 0 THEN st.allocated_amount 
-                    ELSE (st.allocated_percentage * si.base_net_total / 100.0) 
-                END * (CASE WHEN si.is_return = 1 THEN -1.0 ELSE 1.0 END)
+                CASE WHEN si.is_return = 1 THEN -sii.base_net_amount ELSE sii.base_net_amount END
             ) as amount
         FROM
-            `tabSales Team` st
+            `tabSales Invoice Item` sii
         INNER JOIN
-            `tabSales Invoice` si ON st.parent = si.name
+            `tabSales Invoice` si ON sii.parent = si.name
+        LEFT JOIN
+            `tabUser` u ON si.owner = u.name
         WHERE
             { " AND ".join(conditions) }
         GROUP BY
-            st.sales_person
+            si.owner, salesperson_name
         ORDER BY
             amount DESC
     """, values, as_dict=True)
@@ -769,7 +769,7 @@ def get_salesperson_leaderboard(company, from_date, to_date, cost_center=None):
         val = flt(r.amount)
         if val != 0:
             result.append({
-                "sales_person": r.sales_person,
+                "sales_person": r.salesperson_name,
                 "amount": val
             })
     return result
