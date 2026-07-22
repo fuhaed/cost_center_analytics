@@ -2078,11 +2078,11 @@ function renderWarehouseStock(res) {
         res.data.forEach(item => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td style="font-weight: 700; color: var(--text-main);">${item.item_code}</td>
+                <td style="font-weight: 600; color: var(--text-main);">${item.item_code}</td>
                 <td>${item.item_name}</td>
-                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;"><span dir="ltr">${item.qty.toLocaleString()}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600;"><span dir="ltr">${item.qty.toLocaleString()}</span></td>
                 <td class="text-right" style="font-family: 'Outfit', var(--font-family);"><span dir="ltr">${formatCurrency(item.rate)}</span></td>
-                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700; color: var(--primary);"><span dir="ltr">${formatCurrency(item.valuation)}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600; color: var(--primary);"><span dir="ltr">${formatCurrency(item.valuation)}</span></td>
             `;
             tableBody.appendChild(tr);
         });
@@ -2107,10 +2107,10 @@ function renderWarehouseStock(res) {
         res.data.forEach(item => {
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td style="font-weight: 700; color: var(--text-main);">${item.warehouse_name || item.warehouse}</td>
+                <td style="font-weight: 600; color: var(--text-main);">${item.warehouse_name || item.warehouse}</td>
                 <td class="text-right" style="font-family: 'Outfit', var(--font-family);">${item.unique_items.toLocaleString()}</td>
-                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700;"><span dir="ltr">${item.total_qty.toLocaleString()}</span></td>
-                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 700; color: var(--primary);"><span dir="ltr">${formatCurrency(item.total_value)}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600;"><span dir="ltr">${item.total_qty.toLocaleString()}</span></td>
+                <td class="text-right" style="font-family: 'Outfit', var(--font-family); font-weight: 600; color: var(--primary);"><span dir="ltr">${formatCurrency(item.total_value)}</span></td>
             `;
             tableBody.appendChild(tr);
         });
